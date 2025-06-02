@@ -1,3 +1,41 @@
+# Operational tasks
+## Stochastic readers & writers
+Implementazione della rete come da slide
+```scala 3
+  private val stochasticRW = SPN[Place](
+    Trn(MSet(p1), m => 1.0, MSet(p2), MSet()),
+    Trn(MSet(p2), m => 200_000.0, MSet(p3), MSet()),
+    Trn(MSet(p2), m => 100_000.0, MSet(p4), MSet()),
+    Trn(MSet(p3, p5), m => 100_000.0, MSet(p6, p5), MSet()),
+    Trn(MSet(p4, p5), m => 100_000.0, MSet(p7), MSet(p6)),
+    Trn(MSet(p6), m => m(p6) * 0.1, MSet(p1), MSet()),
+    Trn(MSet(p7), m => 0.2, MSet(p1, p5), MSet()),
+  )
+```
+
+## DAP Gossip
+Comunicazione bidirezionale, il messaggio A viene inviato, trasmesso ai vicini, una volta raggiunto C (target) un nuovo
+messaggio di risposta B è generato
+```scala 3
+  private val gossipRules = DAP[Place](
+    // same as slide 38 of "07 - Stochastic Modelling"
+    // a|a --100_000--> a
+    Rule(MSet(A, A), m => 100_000, MSet(A), MSet()),
+    // a|b --1--> b (erases tokens "a" where "b" occurs)
+    Rule(MSet(A, B), m => 1, MSet(B), MSet()),
+    // a --1--> a|ā (spreads tokens "a" into neighbors)
+    Rule(MSet(A), m => 1, MSet(A), MSet(A)),
+
+    // bidirectional communication (same as before but when message A reaches target C a reply B is generated)
+    // when message A reaches target C, generate reply B
+    Rule(MSet(A, C), m => 1, MSet(C, B), MSet()),
+    // reply message B spreads back (same spreading pattern as A) b --1--> b|b̅ (spreads tokens "b" into neighbors)
+    Rule(MSet(B), m => 1, MSet(B), MSet(B)),
+    // b|b --100_000--> b
+    Rule(MSet(B, B), m => 100_000, MSet(B), MSet())
+  )
+```
+
 # SIMULATOR TASK
 Per calcolare il tempo medio per cui una comunicazione avviene in 'n' distinte esecuzioni e calcolare il tempo relativo
 tra 0 e 100% che il sistema passa nello stato di 'fail' è necessario implementare un oggetto che valuti le metriche
